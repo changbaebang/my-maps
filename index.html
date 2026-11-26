@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>방송 맛집 숏컷</title>
+  <meta name="description" content="서울 방송 맛집을 구별로 찾고 네이버 지도로 바로 여는 개인용 앱">
+  <meta name="theme-color" content="#F5F1EA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141719" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+  <form class="gate" id="gate" hidden>
+    <h2>방송 맛집 숏컷</h2>
+    <label for="gate-pass">암호</label>
+    <input id="gate-pass" type="password" autocomplete="current-password">
+    <button type="submit">열기</button>
+    <p id="gate-msg" role="status"></p>
+  </form>
+  <header class="top">
+    <div class="brand">
+      <h1>방송 맛집 숏컷</h1>
+      <p class="sub" id="meta-line"></p>
+    </div>
+    <p class="banner" id="sample-banner" hidden>샘플 데이터: 가상 식당입니다. 실제 식당이 아닙니다.</p>
+    <div class="search">
+      <input id="q" type="search" placeholder="이름, 메뉴, 주소, 방송명, 초성(ㄷㅁㄹ)" autocomplete="off" enterkeyhint="search" aria-label="검색">
+    </div>
+    <div class="kinds" id="kinds" role="group" aria-label="종류"></div>
+    <div class="chips" id="chips" role="group" aria-label="자치구"></div>
+    <div class="controls">
+      <label class="toggle"><input type="checkbox" id="f-parking"> 주차 가능만</label>
+      <label class="toggle"><input type="checkbox" id="f-open"> 오늘 휴무 제외</label>
+      <div class="controls-row">
+      <button type="button" class="locate" id="locate">내 위치</button>
+      <label class="sort">정렬
+        <select id="sort">
+          <option value="naver">네이버순</option>
+          <option value="kakao">카카오순</option>
+          <option value="name">이름순</option>
+          <option value="near" disabled>거리순</option>
+        </select>
+      </label>
+      </div>
+    </div>
+    <p class="loc-msg" id="loc-msg" role="status" hidden></p>
+    <nav class="tabs" role="tablist" aria-label="보기">
+      <button type="button" role="tab" id="tab-list" aria-selected="true" aria-controls="list-panel">목록 <span class="tab-count" id="count"></span></button>
+      <button type="button" role="tab" id="tab-map" aria-selected="false" aria-controls="map-panel">지도</button>
+    </nav>
+  </header>
+  <main class="layout" id="layout" data-view="list">
+    <section id="list-panel" class="list-panel" role="tabpanel" aria-labelledby="tab-list">
+      <p id="status" class="status" role="status"></p>
+      <ol id="list" class="list"></ol>
+    </section>
+    <section id="map-panel" class="map-panel" role="tabpanel" aria-labelledby="tab-map">
+      <div id="map"></div>
+    </section>
+  </main>
+  <script src="./vendor/leaflet/leaflet.js"></script>
+  <script src="./config.js"></script>
+  <script src="./unlock.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

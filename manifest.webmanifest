@@ -1,0 +1,17 @@
+{
+  "name": "방송 맛집 숏컷",
+  "short_name": "맛집숏컷",
+  "description": "서울 방송 맛집을 구별로 찾고 네이버 지도로 바로 여는 개인용 앱",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F1EA",
+  "theme_color": "#F5F1EA",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
