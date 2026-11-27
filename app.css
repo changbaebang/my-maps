@@ -130,9 +130,6 @@ button, input, select { font: inherit; color: inherit; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
 .toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
 .sort { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--muted); }
-.show { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--muted); }
-.show select { flex: 1; min-width: 0; }
-.show select,
 .sort select {
   padding: 4px 6px;
   border: 1px solid var(--rule);

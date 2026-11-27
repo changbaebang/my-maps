@@ -9,10 +9,11 @@
   const DAY_KO = { mon: '월', tue: '화', wed: '수', thu: '목', fri: '금', sat: '토', sun: '일' };
   const CHOSUNG = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
   const SEOUL = [37.5665, 126.978];
+  const PINNED = ['성시경의 먹을텐데', '최자로드', '미친맛집'];
   const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페']];
 
   const state = {
-    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, show: '',
+    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, picked: new Set(), shows: [],
     sort: 'naver', view: 'list', selected: null, visible: [], pos: null,
   };
   const $ = (id) => document.getElementById(id);
@@ -105,7 +106,11 @@
     $('sample-banner').hidden = !data.meta.sample;
     const totals = new Map();
     for (const r of state.items) for (const name of r._shows) totals.set(name, (totals.get(name) || 0) + 1);
-    state.shows = [...totals].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(([name]) => name);
+    // 직접 고른 목록은 앞에, 나머지는 식당이 많은 순서로 고정한다
+    const rank = (name) => (PINNED.includes(name) ? PINNED.indexOf(name) : PINNED.length);
+    state.shows = [...totals]
+      .sort((a, b) => rank(a[0]) - rank(b[0]) || b[1] - a[1] || a[0].localeCompare(b[0], 'ko'))
+      .map(([name]) => name);
     update();
     if (wide.matches) ensureMap();
   }
@@ -128,18 +133,20 @@
     return program;
   }
 
-  // 방송 건수는 다른 조건을 모두 적용하고 방송 조건만 뺀 수다. 순서는 전체 건수가 많은 순서로 고정한다
+  // 방송 건수는 다른 조건을 모두 적용하고 방송 조건만 뺀 수다
   function renderShows() {
-    const show = state.show;
-    state.show = '';
     const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r) && passesDistrict(r));
-    state.show = show;
     const counts = new Map();
     for (const r of base) for (const name of r._shows) counts.set(name, (counts.get(name) || 0) + 1);
-    const option = (value, label, n) => h('option', { value, dataset: { count: String(n) } }, `${label} (${n})`);
-    $('f-show').replaceChildren(option('', '모든 방송', base.length),
-      ...state.shows.map((name) => option(name, name, counts.get(name) || 0)));
-    $('f-show').value = show;
+    const make = (value, label, n, pressed) => h('button', {
+      type: 'button', class: n === 0 ? 'chip is-empty' : 'chip', 'aria-pressed': String(pressed),
+      dataset: { show: value, count: String(n) },
+    }, label, h('span', { class: 'n' }, n));
+    const row = $('shows');
+    const left = row.scrollLeft;
+    row.replaceChildren(make('', '모든 방송', base.length, !state.picked.size),
+      ...state.shows.map((name) => make(name, name, counts.get(name) || 0, state.picked.has(name))));
+    row.scrollLeft = left; // 칩을 고른 뒤에도 보던 자리를 지킨다
   }
 
   function matchesQuery(r) {
@@ -151,9 +158,13 @@
 
   function passesToggles(r) {
     if (state.parkingOnly && !r.parking.available) return false;
-    if (state.show && !r._shows.has(state.show)) return false;
     if (state.hideClosedToday && isClosedToday(r)) return false;
     return true;
+  }
+
+  // 고른 방송 중 하나라도 나온 곳. 아무것도 안 고르면 모두
+  function passesShow(r) {
+    return !state.picked.size || [...state.picked].some((name) => r._shows.has(name));
   }
 
   function passesKind(r) {
@@ -175,7 +186,7 @@
 
   function visibleItems() {
     return state.items
-      .filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r) && passesDistrict(r))
+      .filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r) && passesDistrict(r))
       .sort(SORTS[state.sort]);
   }
 
@@ -190,7 +201,7 @@
 
   // 각 고르기의 건수는 다른 조건을 모두 적용하고 자기 조건만 뺀 수다
   function renderKinds() {
-    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesDistrict(r));
+    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesDistrict(r));
     $('kinds').replaceChildren(...KINDS.map(([value, label]) => {
       const n = value ? base.filter((r) => r.kind === value).length : base.length;
       return h('button', {
@@ -203,7 +214,7 @@
   }
 
   function renderChips() {
-    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r));
+    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r));
     const counts = new Map();
     for (const r of base) counts.set(r.district, (counts.get(r.district) || 0) + 1);
     const present = DISTRICT_ORDER.filter((gu) => state.items.some((r) => r.district === gu));
@@ -425,7 +436,14 @@
   $('q').addEventListener('input', (e) => { state.q = e.target.value; update(); });
   $('f-parking').addEventListener('change', (e) => { state.parkingOnly = e.target.checked; update(); });
   $('f-open').addEventListener('change', (e) => { state.hideClosedToday = e.target.checked; update(); });
-  $('f-show').addEventListener('change', (e) => { state.show = e.target.value; update(); });
+  $('shows').addEventListener('click', (e) => {
+    const button = e.target.closest('.chip');
+    if (!button) return;
+    const name = button.dataset.show;
+    if (!name) state.picked.clear();
+    else if (!state.picked.delete(name)) state.picked.add(name);
+    update();
+  });
   $('sort').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('kinds').addEventListener('click', (e) => {
     const button = e.target.closest('.chip');
