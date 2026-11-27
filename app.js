@@ -12,7 +12,7 @@
   const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페']];
 
   const state = {
-    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, meokulOnly: false,
+    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, show: '',
     sort: 'naver', view: 'list', selected: null, visible: [], pos: null,
   };
   const $ = (id) => document.getElementById(id);
@@ -103,20 +103,43 @@
     state.items = Object.values(data.districts).flat().map(prepare);
     $('meta-line').textContent = `${data.meta.count}곳 · ${String(data.meta.generated_at).slice(0, 10)} 기준`;
     $('sample-banner').hidden = !data.meta.sample;
-    $('meokul-toggle').hidden = !state.items.some(isMeokul);
+    const totals = new Map();
+    for (const r of state.items) for (const name of r._shows) totals.set(name, (totals.get(name) || 0) + 1);
+    state.shows = [...totals].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(([name]) => name);
     update();
     if (wide.matches) ensureMap();
   }
 
   function prepare(r) {
     const programs = (r.tv_shows || []).map((s) => s.program);
+    r._shows = new Set(programs.map(showName));
     r._hay = compact([r.name, r.category, r.address, r.district, ...programs].join(' '));
     r._cho = [chosung(r.name), ...programs.map(chosung)].join('|');
     return r;
   }
 
-  function isMeokul(r) {
-    return r.tv_shows.some((s) => s.program.includes('먹을텐데'));
+  // 같은 프로그램의 표기 차이는 하나로 묶는다 (카드에는 원래 이름을 그대로 보여 준다)
+  function showName(program) {
+    const t = program.replace(/\s+/g, '');
+    if (/맛있는녀석들/.test(t)) return '맛있는녀석들';
+    if (/^찾아라맛있는tv$/i.test(t)) return '찾아라맛있는TV';
+    if (/^흑백요리사/.test(t)) return '흑백요리사';
+    if (/테이스티로드$/.test(t)) return '테이스티로드';
+    return program;
+  }
+
+  // 방송 건수는 다른 조건을 모두 적용하고 방송 조건만 뺀 수다. 순서는 전체 건수가 많은 순서로 고정한다
+  function renderShows() {
+    const show = state.show;
+    state.show = '';
+    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r) && passesDistrict(r));
+    state.show = show;
+    const counts = new Map();
+    for (const r of base) for (const name of r._shows) counts.set(name, (counts.get(name) || 0) + 1);
+    const option = (value, label, n) => h('option', { value, dataset: { count: String(n) } }, `${label} (${n})`);
+    $('f-show').replaceChildren(option('', '모든 방송', base.length),
+      ...state.shows.map((name) => option(name, name, counts.get(name) || 0)));
+    $('f-show').value = show;
   }
 
   function matchesQuery(r) {
@@ -128,7 +151,7 @@
 
   function passesToggles(r) {
     if (state.parkingOnly && !r.parking.available) return false;
-    if (state.meokulOnly && !isMeokul(r)) return false;
+    if (state.show && !r._shows.has(state.show)) return false;
     if (state.hideClosedToday && isClosedToday(r)) return false;
     return true;
   }
@@ -159,6 +182,7 @@
   // ------------------------------------------------------------ 그리기
 
   function update() {
+    renderShows();
     renderKinds();
     renderChips();
     render();
@@ -401,7 +425,7 @@
   $('q').addEventListener('input', (e) => { state.q = e.target.value; update(); });
   $('f-parking').addEventListener('change', (e) => { state.parkingOnly = e.target.checked; update(); });
   $('f-open').addEventListener('change', (e) => { state.hideClosedToday = e.target.checked; update(); });
-  $('f-meokul').addEventListener('change', (e) => { state.meokulOnly = e.target.checked; update(); });
+  $('f-show').addEventListener('change', (e) => { state.show = e.target.value; update(); });
   $('sort').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('kinds').addEventListener('click', (e) => {
     const button = e.target.closest('.chip');
