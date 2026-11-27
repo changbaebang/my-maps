@@ -216,6 +216,8 @@ button, input, select { font: inherit; color: inherit; }
   letter-spacing: -0.02em;
 }
 
+.scores dd.is-hidden { color: var(--muted); font-size: 13px; font-weight: 600; line-height: 25px; }
+
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;

@@ -12,7 +12,7 @@
   const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페']];
 
   const state = {
-    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false,
+    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, meokulOnly: false,
     sort: 'naver', view: 'list', selected: null, visible: [], pos: null,
   };
   const $ = (id) => document.getElementById(id);
@@ -45,6 +45,7 @@
   }
 
   function fmtRating(value) {
+    if (value == null) return '숨김';
     return Number.isInteger(value) ? value.toFixed(1) : String(value);
   }
 
@@ -102,6 +103,7 @@
     state.items = Object.values(data.districts).flat().map(prepare);
     $('meta-line').textContent = `${data.meta.count}곳 · ${String(data.meta.generated_at).slice(0, 10)} 기준`;
     $('sample-banner').hidden = !data.meta.sample;
+    $('meokul-toggle').hidden = !state.items.some(isMeokul);
     update();
     if (wide.matches) ensureMap();
   }
@@ -113,6 +115,10 @@
     return r;
   }
 
+  function isMeokul(r) {
+    return r.tv_shows.some((s) => s.program.includes('먹을텐데'));
+  }
+
   function matchesQuery(r) {
     const q = compact(state.q);
     if (!q) return true;
@@ -122,6 +128,7 @@
 
   function passesToggles(r) {
     if (state.parkingOnly && !r.parking.available) return false;
+    if (state.meokulOnly && !isMeokul(r)) return false;
     if (state.hideClosedToday && isClosedToday(r)) return false;
     return true;
   }
@@ -134,10 +141,11 @@
     return !state.district || r.district === state.district;
   }
 
+  const naverOrder = (r) => r.naver_rating ?? -1; // 숨김은 네이버순에서 뒤로
   const byName = (a, b) => a.name.localeCompare(b.name, 'ko');
   const SORTS = {
-    naver: (a, b) => b.naver_rating - a.naver_rating || b.kakao_rating - a.kakao_rating || byName(a, b),
-    kakao: (a, b) => b.kakao_rating - a.kakao_rating || b.naver_rating - a.naver_rating || byName(a, b),
+    naver: (a, b) => naverOrder(b) - naverOrder(a) || b.kakao_rating - a.kakao_rating || byName(a, b),
+    kakao: (a, b) => b.kakao_rating - a.kakao_rating || naverOrder(b) - naverOrder(a) || byName(a, b),
     name: byName,
     near: (a, b) => (a._dist ?? Infinity) - (b._dist ?? Infinity) || byName(a, b),
   };
@@ -218,7 +226,7 @@
           h('h2', { class: 'name' }, r.name),
           h('p', { class: 'addr' }, r.address)),
         h('dl', { class: 'scores' },
-          h('div', {}, h('dt', {}, '네이버'), h('dd', { class: 'score-naver' }, fmtRating(r.naver_rating))),
+          h('div', {}, h('dt', {}, '네이버'), h('dd', { class: r.naver_rating == null ? 'score-naver is-hidden' : 'score-naver' }, fmtRating(r.naver_rating))),
           h('div', {}, h('dt', {}, '카카오'), h('dd', { class: 'score-kakao' }, fmtRating(r.kakao_rating))))),
       h('dl', { class: 'facts' },
         h('div', {}, h('dt', {}, '방송'), h('dd', { class: 'tv' }, shows)),
@@ -393,6 +401,7 @@
   $('q').addEventListener('input', (e) => { state.q = e.target.value; update(); });
   $('f-parking').addEventListener('change', (e) => { state.parkingOnly = e.target.checked; update(); });
   $('f-open').addEventListener('change', (e) => { state.hideClosedToday = e.target.checked; update(); });
+  $('f-meokul').addEventListener('change', (e) => { state.meokulOnly = e.target.checked; update(); });
   $('sort').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('kinds').addEventListener('click', (e) => {
     const button = e.target.closest('.chip');
