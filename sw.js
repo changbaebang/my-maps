@@ -2,7 +2,7 @@
 // 앱 셸은 캐시에서 바로 주고 뒤에서 새로 받는다(stale-while-revalidate).
 // 데이터 JSON은 네트워크 먼저, 안 되면 캐시. 지도 타일(다른 출처)은 손대지 않는다.
 importScripts('./config.js');
-const VERSION = 'v9';
+const VERSION = 'v10';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 const DATA_PATH = self.APP_DATA.url;

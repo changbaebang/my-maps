@@ -9,7 +9,7 @@
   const DAY_KO = { mon: '월', tue: '화', wed: '수', thu: '목', fri: '금', sat: '토', sun: '일' };
   const CHOSUNG = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
   const SEOUL = [37.5665, 126.978];
-  const PINNED = ['성시경의 먹을텐데', '최자로드', '미친맛집'];
+  const PINNED = ['성시경의 먹을텐데', '최자로드', '미친맛집', '백년가게'];
   const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페']];
 
   const state = {
@@ -264,7 +264,7 @@
           h('div', {}, h('dt', {}, '네이버'), h('dd', { class: r.naver_rating == null ? 'score-naver is-hidden' : 'score-naver' }, fmtRating(r.naver_rating))),
           h('div', {}, h('dt', {}, '카카오'), h('dd', { class: 'score-kakao' }, fmtRating(r.kakao_rating))))),
       h('dl', { class: 'facts' },
-        h('div', {}, h('dt', {}, '방송'), h('dd', { class: 'tv' }, shows)),
+        h('div', {}, h('dt', {}, '방송·선정'), h('dd', { class: 'tv' }, shows)),
         h('div', {}, h('dt', {}, '주차'), h('dd', { class: 'parking', dataset: { available: String(r.parking.available) } },
           r.parking.available ? '가능' : '불가',
           r.parking.note ? h('span', { class: 'note' }, ` · ${r.parking.note}`) : null)),
