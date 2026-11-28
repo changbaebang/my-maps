@@ -10,10 +10,10 @@
   const CHOSUNG = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
   const SEOUL = [37.5665, 126.978];
   const PINNED = ['성시경의 먹을텐데', '최자로드', '미친맛집', '백년가게'];
-  const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페']];
+  const KINDS = [['', '전체'], ['meal', '식사'], ['dessert', '디저트·카페'], ['tteok', '떡볶이']];
 
   const state = {
-    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, picked: new Set(), shows: [],
+    items: [], meta: null, q: '', kind: '', district: '', parkingOnly: false, hideClosedToday: false, noTteok: false, picked: new Set(), shows: [],
     sort: 'naver', view: 'list', selected: null, visible: [], pos: null,
   };
   const $ = (id) => document.getElementById(id);
@@ -68,8 +68,9 @@
     return `https://map.naver.com/p/search/${encodeURIComponent(`${r.name} ${r.district}`)}`;
   }
 
+  // 휴무를 모르는 곳(null)은 쉬는 날로 보지 않는다
   function isClosedToday(r) {
-    return r.closed_days.includes(today);
+    return Array.isArray(r.closed_days) && r.closed_days.includes(today);
   }
 
   function h(tag, attrs, ...children) {
@@ -104,6 +105,7 @@
     state.items = Object.values(data.districts).flat().map(prepare);
     $('meta-line').textContent = `${data.meta.count}곳 · ${String(data.meta.generated_at).slice(0, 10)} 기준`;
     $('sample-banner').hidden = !data.meta.sample;
+    $('notteok-toggle').hidden = !state.items.some((r) => r.kind === 'tteok');
     const totals = new Map();
     for (const r of state.items) for (const name of r._shows) totals.set(name, (totals.get(name) || 0) + 1);
     // 직접 고른 목록은 앞에, 나머지는 식당이 많은 순서로 고정한다
@@ -135,7 +137,7 @@
 
   // 방송 건수는 다른 조건을 모두 적용하고 방송 조건만 뺀 수다
   function renderShows() {
-    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r) && passesDistrict(r));
+    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesKind(r) && passesTteok(r) && passesDistrict(r));
     const counts = new Map();
     for (const r of base) for (const name of r._shows) counts.set(name, (counts.get(name) || 0) + 1);
     const make = (value, label, n, pressed) => h('button', {
@@ -157,7 +159,7 @@
   }
 
   function passesToggles(r) {
-    if (state.parkingOnly && !r.parking.available) return false;
+    if (state.parkingOnly && r.parking.available !== true) return false;
     if (state.hideClosedToday && isClosedToday(r)) return false;
     return true;
   }
@@ -169,6 +171,11 @@
 
   function passesKind(r) {
     return !state.kind || r.kind === state.kind;
+  }
+
+  // "떡볶이 빼기"는 떡볶이를 직접 고른 때에는 적용하지 않는다
+  function passesTteok(r) {
+    return !state.noTteok || state.kind === 'tteok' || r.kind !== 'tteok';
   }
 
   function passesDistrict(r) {
@@ -186,13 +193,14 @@
 
   function visibleItems() {
     return state.items
-      .filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r) && passesDistrict(r))
+      .filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r) && passesTteok(r) && passesDistrict(r))
       .sort(SORTS[state.sort]);
   }
 
   // ------------------------------------------------------------ 그리기
 
   function update() {
+    $('f-notteok').disabled = state.kind === 'tteok';
     renderShows();
     renderKinds();
     renderChips();
@@ -203,7 +211,9 @@
   function renderKinds() {
     const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesDistrict(r));
     $('kinds').replaceChildren(...KINDS.map(([value, label]) => {
-      const n = value ? base.filter((r) => r.kind === value).length : base.length;
+      // 떡볶이 칩은 빼기와 상관없이 세고, 전체는 빼기를 반영한다
+      const n = value ? base.filter((r) => r.kind === value).length
+        : base.filter((r) => !state.noTteok || r.kind !== 'tteok').length;
       return h('button', {
         type: 'button',
         class: n === 0 ? 'chip is-empty' : 'chip',
@@ -214,7 +224,7 @@
   }
 
   function renderChips() {
-    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r));
+    const base = state.items.filter((r) => matchesQuery(r) && passesToggles(r) && passesShow(r) && passesKind(r) && passesTteok(r));
     const counts = new Map();
     for (const r of base) counts.set(r.district, (counts.get(r.district) || 0) + 1);
     const present = DISTRICT_ORDER.filter((gu) => state.items.some((r) => r.district === gu));
@@ -248,7 +258,9 @@
       s.program,
       s.aired ? h('span', { class: 'date' }, ` ${s.aired.replaceAll('-', '.')}`) : null,
     ]);
-    const closed = r.closed_days.length ? r.closed_days.map((d) => DAY_KO[d]).join('·') : '연중무휴';
+    const closed = r.closed_days == null ? '정보 없음'
+      : r.closed_days.length ? r.closed_days.map((d) => DAY_KO[d]).join('·') : '연중무휴';
+    const parking = r.parking.available == null ? '정보 없음' : r.parking.available ? '가능' : '불가';
     return h('li', {
       class: state.selected === r.id ? 'item is-selected' : 'item',
       dataset: { id: r.id, district: r.district, kind: r.kind },
@@ -264,9 +276,9 @@
           h('div', {}, h('dt', {}, '네이버'), h('dd', { class: r.naver_rating == null ? 'score-naver is-hidden' : 'score-naver' }, fmtRating(r.naver_rating))),
           h('div', {}, h('dt', {}, '카카오'), h('dd', { class: 'score-kakao' }, fmtRating(r.kakao_rating))))),
       h('dl', { class: 'facts' },
-        h('div', {}, h('dt', {}, '방송·선정'), h('dd', { class: 'tv' }, shows)),
+        r.tv_shows.length ? h('div', {}, h('dt', {}, '방송·선정'), h('dd', { class: 'tv' }, shows)) : null,
         h('div', {}, h('dt', {}, '주차'), h('dd', { class: 'parking', dataset: { available: String(r.parking.available) } },
-          r.parking.available ? '가능' : '불가',
+          parking,
           r.parking.note ? h('span', { class: 'note' }, ` · ${r.parking.note}`) : null)),
         h('div', {}, h('dt', {}, '휴무'), h('dd', { class: 'closed' },
           closed,
@@ -285,15 +297,16 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
-  // 식사는 꽉 찬 원, 디저트·카페는 속이 빈 원
+  // 식사는 꽉 찬 원, 디저트·카페는 속이 빈 원, 떡볶이는 옅게 채운 원
   function markerStyle(selected, kind) {
     const dessert = kind === 'dessert';
+    const tteok = kind === 'tteok';
     return {
       radius: selected ? 10 : 7,
-      weight: dessert ? 3 : 2,
-      color: dessert ? cssVar('--ink') : cssVar('--paper'),
-      fillColor: dessert ? cssVar('--paper') : cssVar('--ink'),
-      fillOpacity: dessert ? 1 : (selected ? 1 : 0.85),
+      weight: dessert || tteok ? 3 : 2,
+      color: dessert || tteok ? cssVar('--ink') : cssVar('--paper'),
+      fillColor: dessert ? cssVar('--paper') : tteok ? cssVar('--muted') : cssVar('--ink'),
+      fillOpacity: dessert || tteok ? 1 : (selected ? 1 : 0.85),
     };
   }
 
@@ -436,6 +449,7 @@
   $('q').addEventListener('input', (e) => { state.q = e.target.value; update(); });
   $('f-parking').addEventListener('change', (e) => { state.parkingOnly = e.target.checked; update(); });
   $('f-open').addEventListener('change', (e) => { state.hideClosedToday = e.target.checked; update(); });
+  $('f-notteok').addEventListener('change', (e) => { state.noTteok = e.target.checked; update(); });
   $('shows').addEventListener('click', (e) => {
     const button = e.target.closest('.chip');
     if (!button) return;
